@@ -95,7 +95,7 @@ const getApplePublicKey = async () => {
   url.pathname = '/auth/keys';
 
   const data = await request({ url: url.toString(), method: 'GET' });
-  const key = JSON.parse(data).keys[0];
+  const key = JSON.parse(data).keys[1];
 
   const pubKey = new NodeRSA();
   pubKey.importKey({ n: Buffer.from(key.n, 'base64'), e: Buffer.from(key.e, 'base64') }, 'components-public');
