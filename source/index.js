@@ -95,16 +95,34 @@ const getApplePublicKey = async () => {
   url.pathname = '/auth/keys';
 
   const data = await request({ url: url.toString(), method: 'GET' });
-  const key = JSON.parse(data).keys[1];
 
-  const pubKey = new NodeRSA();
-  pubKey.importKey({ n: Buffer.from(key.n, 'base64'), e: Buffer.from(key.e, 'base64') }, 'components-public');
-  return pubKey.exportKey(['public']);
+  const keys = JSON.parse(data).keys;
+  let pubKeys = [];
+
+  keys.forEach(key => {
+    const pubKey = new NodeRSA();
+    pubKey.importKey({ n: Buffer.from(key.n, 'base64'), e: Buffer.from(key.e, 'base64') }, 'components-public');
+    pubKeys.push(pubKey.exportKey(['public']));
+  });
+  
+  console.log(JSON.stringify(pubKeys));
+  return pubKeys;
 };
 
 const verifyIdToken = async (idToken, clientID) => {
+  let jwtClaims = {};
   const applePublicKey = await getApplePublicKey();
-  const jwtClaims = jwt.verify(idToken, applePublicKey, { algorithms: 'RS256' });
+  
+  for (let index = 0; index < 3; index++) {
+    try {
+      jwtClaims = jwt.verify(idToken, applePublicKey[index], { algorithms: 'RS256' });
+      console.log(JSON.stringify(jwtClaims));
+      if (jwtClaims.iss === TOKEN_ISSUER) break;
+    } catch (error) {
+      console.log("Invalid Signature Error. " + JSON.stringify(error));
+      continue;
+    }
+  }
 
   if (jwtClaims.iss !== TOKEN_ISSUER) throw new Error('id token not issued by correct OpenID provider - expected: ' + TOKEN_ISSUER + ' | from: ' + jwtClaims.iss);
   if (clientID !== undefined && jwtClaims.aud !== clientID) throw new Error('aud parameter does not include this client - is: ' + jwtClaims.aud + '| expected: ' + clientID);
